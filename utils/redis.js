@@ -4,7 +4,7 @@ import { promisify } from 'util';
 class RedisClient {
   constructor() {
     this.client = createClient()
-      .on('error', err => console.log(`Redis client not connected to the server: ${err}`))
+      .on('error', (err) => console.log(`Redis client not connected to the server: ${err}`))
       .on('connect', () => console.log('Redis client connected to the server'));
 
     // Promisify the Redis client methods
@@ -22,6 +22,7 @@ class RedisClient {
       return await this.getAsync(key);
     } catch (err) {
       console.error(`Error getting key: ${err}`);
+      return null;
     }
   }
 
