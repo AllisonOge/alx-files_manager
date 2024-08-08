@@ -27,7 +27,7 @@ export default class FilesController {
     // authorize request
     const [_, userId, user] = await FilesController.authReq(req, res);
     // create a file
-    const { name, type, parentId='0', isPublic=false, data } = req.body;
+    const { name, type, parentId=0, isPublic=false, data } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Missing name' });
@@ -41,7 +41,7 @@ export default class FilesController {
       return res.status(400).json({ error: 'Missing data' });
     }
 
-    if (parentId !== '0') {
+    if (parentId !== 0) {
       // check if file is present in DB
       const file = await dbClient.db.collection('files').findOne({ '_id': ObjectId(parentId) });
       if (!file) return res.status(400).json({ error: 'Parent not found' });
@@ -86,17 +86,17 @@ export default class FilesController {
     const [_, userId, user] = await FilesController.authReq(req, res);
 
     // retrive all users files
-    const { parentId='0', page='0' } = req.query;
+    const { parentId=0, page='0' } = req.query;
     const filesCount = await dbClient.db.collection('files').countDocuments({ userId: ObjectId(userId), parentId });
     if (filesCount === 0) return res.json([]);
 
     const skip = parseInt(page, 10) * 20;
     // paginate query using mongodb aggregate cursor
-    const files = dbClient.db.collection('files').aggregate([
+    const files = await dbClient.db.collection('files').aggregate([
       { $match: { userId: ObjectId(userId), parentId } },
       { $skip: skip },
       { $limit: 20 },
     ]).toArray();
-    return res.json(files);
+    return res.json(files.map((file) => ({ ...file, id: file._id, _id: undefined })));
   }
 }
