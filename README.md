@@ -174,4 +174,88 @@ bob@dylan:~$ ls /tmp/files_manager/
 2a1f4fc3-687b-491a-a3d2-5808a02942c9   51997b88-5c42-42c2-901e-e7f4e71bdc47
 bob@dylan:~$
 ```
+- add two endpoints `GET /files/:id` and `GET /files` handled by `FilesController.getShow` and `FilesController.getIndex` respectively in the `controllers/FilesController.js` file. the `GET /files/:id` endpoint should retrieve the file document based on the ID -- as before the authorization is determined if request token is available and user exist otherwise handle as before. If no file document is linked to the user and the ID return error `Not found` with the status code 404, otherwise return the file document. The `GET /files` endpoint shoiuld retrieve all users file document for a specific `parentId` and with pagination -- authorize as before and handle error appropriately. Given the query params `parentId` and `page` return the list of file document. If `parentId` is not linked to any user folder return empty list and it is set to 0 by default. Pagination is set to a max of 20 items per page (`page` query param starts at 0) and pagination should be done directly by the `aggregate` call of MongoDB.
+```bash
+# Usage:
+# Terminal 2
+bob@dylan:~$ curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+[{"id":"5f1e879ec7ba06511e683b22","userId":"5f1e7cda04a394508232559d","name":"myText.txt","type":"file","isPublic":false,"parentId":0},{"id":"5f1e881cc7ba06511e683b23","userId":"5f1e7cda04a394508232559d","name":"images","type":"folder","isPublic":false,"parentId":0},{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":true,"parentId":"5f1e881cc7ba06511e683b23"}]
+bob@dylan:~$
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files?parentId=5f1e881cc7ba06511e683b23 -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+[{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":true,"parentId":"5f1e881cc7ba06511e683b23"}]
+bob@dylan:~$
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25 -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":true,"parentId":"5f1e881cc7ba06511e683b23"}
+bob@dylan:~$
+```
+- add two endpoints `PUT /files/:id/publish` and `PUT /files/:id/unpublish` handled by `FilesController.putPublish` and `FilesController.putUnpublish` respectively in the `controller/FilesController.js`. `PUT /files/:id/publish` endpoint should set `isPublic` to true on the file document based on the ID -- authorize request as usual and handle errors, if no file is linked to the user and the ID parameter retunr the error `Not found` with a status code 404, otherwise update teh value of `isPublic` to true and return the file document with a status code 200. `PUT /files/:id/unpublish` endpoint should set `isPublic` to false based on the ID. As usual authorise the request, then if no file is found linked ot the user and ID parameter return the error `Not found` with status code `404` otherwise update the value of `isPublic` to false and return the file document with the status code 200.
+```bash
+# Usage:
+# Terminal 2
+bob@dylan:~$ curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25 -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":false,"parentId":"5f1e881cc7ba06511e683b23"}
+bob@dylan:~$
+bob@dylan:~$ curl -XPUT 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25/publish -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":true,"parentId":"5f1e881cc7ba06511e683b23"}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XPUT 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25/unpublish -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e8896c7ba06511e683b25","userId":"5f1e7cda04a394508232559d","name":"image.png","type":"image","isPublic":false,"parentId":"5f1e881cc7ba06511e683b23"}
+bob@dylan:~$ 
+```
+- add one endpoint `GET /files/:id/data` handled by `FilesController.getFile` in the `controllers/FilesController.js` file. The endpoint should return the content of the file document based on the ID. If no file is linked to the ID parameter return an error `Not found` with status code 404; if the file document (folder or file) is not public (`isPublic`: false) and no user authenticate or not owner of the file, return an error `Not found` with a status code 404; if the type of the file document is `folder`, return an error `A folder doesn't have content` with a status code 400; if the file isn not locally present, return error `Not found` with status code 404 otherwise using the `mime-types` module, get the MIME-type based on the name of the file and retunr the content of the file with the correct MIME-type.
+```bash
+# Usage:
+# Terminal 2
+bob@dylan:~$ curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XPUT 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22/unpublish -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e879ec7ba06511e683b22","userId":"5f1e7cda04a394508232559d","name":"myText.txt","type":"file","isPublic":false,"parentId":0}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22/data -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+Hello Webstack!
+
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22/data ; echo ""
+{"error":"Not found"}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XPUT 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22/publish -H "X-Token: f21fb953-16f9-46ed-8d9c-84c6450ec80f" ; echo ""
+{"id":"5f1e879ec7ba06511e683b22","userId":"5f1e7cda04a394508232559d","name":"myText.txt","type":"file","isPublic":true,"parentId":0}
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e879ec7ba06511e683b22/data ; echo ""
+Hello Webstack!
+
+bob@dylan:~$
+```
+- update the `POST /files` endpoint to start a background process for generating thumbnails for a file type `image`. Create a `Bull` queue `fileQueue` and add a job to this queue with the `userId` and `fileId` when a new image is stored (in local and in DB). In the file `worker.js`, use the module `Bull` to create a queue `fileQueue` and process this queue -- if fileId is not present raise error `Missing fileId`; if userId is not present raise error `Missing userId`; if no document is found in DB based on the fieldId and userId raise error `File not found` and generate 3 thumbnails with width=500, 250 and 100 whcih should be stored on the same location of the original file by appending `_<width>` by using the `image-thumbnail` module. Update the endpoint `GET /files/:id/data` to accept a query parameter `size` that retrieves the correct local file if it exist otherwise return an error `Not found` with staus code 404.
+```bash
+# Usage
+# Terminal 3: (start the worker)
+bob@dylan:~$ npm run start-worker
+...
+
+# Terminal 2
+bob@dylan:~$ curl 0.0.0.0:5000/connect -H "Authorization: Basic Ym9iQGR5bGFuLmNvbTp0b3RvMTIzNCE=" ; echo ""
+{"token":"f21fb953-16f9-46ed-8d9c-84c6450ec80f"}
+bob@dylan:~$ 
+bob@dylan:~$ python image_upload.py image.png f21fb953-16f9-46ed-8d9c-84c6450ec80f 5f1e881cc7ba06511e683b23
+{'id': '5f1e8896c7ba06511e683b25', 'userId': '5f1e7cda04a394508232559d', 'name': 'image.png', 'type': 'image', 'isPublic': True, 'parentId': '5f1e881cc7ba06511e683b23'}
+bob@dylan:~$ ls /tmp/files_manager/
+2a1f4fc3-687b-491a-a3d2-5808a02942c9   51997b88-5c42-42c2-901e-e7f4e71bdc47   6dc53397-8491-4b7c-8273-f748b1a031cb   6dc53397-8491-4b7c-8273-f748b1a031cb_100   6dc53397-8491-4b7c-8273-f748b1a031cb_250    6dc53397-8491-4b7c-8273-f748b1a031cb_500
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25/data -so new_image.png ; file new_image.png
+new_image.png: PNG image data, 471 x 512, 8-bit/color RGBA, non-interlaced
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25/data?size=100 -so new_image.png ; file new_image.png
+new_image.png: PNG image data, 100 x 109, 8-bit/color RGBA, non-interlaced
+bob@dylan:~$ 
+bob@dylan:~$ curl -XGET 0.0.0.0:5000/files/5f1e8896c7ba06511e683b25/data?size=250 -so new_image.png ; file new_image.png
+new_image.png: PNG image data, 250 x 272, 8-bit/color RGBA, non-interlaced
+bob@dylan:~$
+```
 -
