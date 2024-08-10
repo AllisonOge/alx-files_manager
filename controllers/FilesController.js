@@ -57,7 +57,7 @@ export default class FilesController {
      if (type === 'folder') {
        // insert file into database if parent file type is a folder
        let reply = await dbClient.db.collection('files').insertOne({
-         userId, name, type, isPublic, parentId
+	       userId: ObjectId(userId), name, type, isPublic, parentId
        });
        return res.status(201).json({ id: reply.insertedId, ...folderData });
     }
