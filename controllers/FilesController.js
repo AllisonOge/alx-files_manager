@@ -10,22 +10,27 @@ export default class FilesController {
     // retrieve the user based on the token
     const token = req.header('X-Token');
     if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     const userId = await redisClient.get(`auth_${token}`);
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-    const user = dbClient.db.collection('users').findOne({ '_id': ObjectId(userId) });
+    const user = await dbClient.db.collection('users').findOne({ '_id': ObjectId(userId) });
     if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     return [token, userId, user];
   }
 
   static async postUpload(req, res) {
     // authorize request
-    const [_, userId, user] = await FilesController.authReq(req, res);
+    const authResult = await FilesController.authReq(req, res);
+    if (!authResult) return;
+    const [_, userId, user] = authResult
     // create a file
     const { name, type, parentId=0, isPublic=false, data } = req.body;
 
@@ -71,8 +76,9 @@ export default class FilesController {
 
   static async getShow(req, res) {
     // authorise request
-    const [_, userId, user] = await FilesController.authReq(req, res);
-
+    const authResult = await FilesController.authReq(req, res);
+    if (!authResult) return;
+    const [_, userId, user] = authResult; 
     // retrieve file
     const { fileId } = req.params;
     const file = await dbClient.db.collection('files').findOne({ '_id': ObjectId(fileId), userId: ObjectId(userId) });
@@ -83,8 +89,9 @@ export default class FilesController {
 
   static async getIndex(req, res) {
     // authorise request
-    const [_, userId, user] = await FilesController.authReq(req, res);
-
+    const authResult = await FilesController.authReq(req, res);
+    if (!authResult) return;
+    const [_, userId, user] = authResult; 
     // retrive all users files
     const { parentId=0, page='0' } = req.query;
     const filesCount = await dbClient.db.collection('files').countDocuments({ userId: ObjectId(userId), parentId });
@@ -102,8 +109,9 @@ export default class FilesController {
 
   static async putPublish(req, res) {
     // authorize request
-    const [_, userId, user] = await FilesController.authReq(req, res);
-
+    const authResult = await FilesController.authReq(req, res);
+    if (!authResult) return;
+    const [_, userId, user] = authResult;
     // retrieve file
     const { fileId } = req.params;
     const file = await dbClient.db.collection('files').findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
@@ -116,8 +124,9 @@ export default class FilesController {
 
   static async putUnpublish(req, res) {
     // authorize request
-    const [_, userId, user] = await FilesController.authReq(req, res);
-
+    const authResult = await FilesController.authReq(req, res);
+    if (!authResult) return;
+    const [_, userId, user] = authResult; 
     // retrieve file
     const { fileId } = req.params;
     const file = await dbClient.db.collection('files').findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
