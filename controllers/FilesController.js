@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import fs from 'fs';
 import path from 'path';
+import mime from 'mime-types';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 
@@ -155,7 +156,7 @@ export default class FilesController {
     let { localPath } = file;
     if (size) localPath = `${localPath}_${size}`;
     // if file not locally present
-    if (!fs..existSync(localPath)) return res.status(404).json({ error: 'Not found' });
+    if (!fs.existSync(localPath)) return res.status(404).json({ error: 'Not found' });
 
     res.setHeader('Content-Type', mime.lookup(file.name));
     return res.sendFile(localPath);
