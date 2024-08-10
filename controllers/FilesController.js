@@ -136,4 +136,28 @@ export default class FilesController {
     const updatedFile = await dbClient.db.collection('files').findOne({ _id: ObjectId(fileId) });
     return res.status(200).json(updatedFile);
   }
+
+  static async getFile(req, res) {
+    const { fileId } = req.params;
+    const { size } = req.query;
+    const file = await dbClient.db.collection('files').findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
+    if (!file) return res.status(404).json({ error: 'Not found' });
+
+    const token = req.header('X-Token');
+    if (!token) return res.status(404).json({ error: 'Not found' });
+    const userId = await redisClient.get(`auth_${token}`);
+    const auth = userId && userId === file.userId.toString();
+    if (!file.isPublic || !auth) return res.status(404).json({ error: 'Not found' });
+
+    // if type is folder
+    if (file.type === 'folder') return res.status(400).json({ error: 'A folder doesn\'t have content' });
+
+    let { localPath } = file;
+    if (size) localPath = `${localPath}_${size}`;
+    // if file not locally present
+    if (!fs..existSync(localPath)) return res.status(404).json({ error: 'Not found' });
+
+    res.setHeader('Content-Type', mime.lookup(file.name));
+    return res.sendFile(localPath);
+  }
 }
